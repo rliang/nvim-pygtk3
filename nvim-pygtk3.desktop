@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim
+Icon=vim
+Comment=PyGTK3 front-end for the Neovim text editor
+Categories=Utility;TextEditor;
+MimeType=text/english;text/plain;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;
+Terminal=false
