@@ -1,6 +1,9 @@
 # nvim-pygtk3
 
-PyGTK3 frontend to Neovim with a buffer list on the header bar.
+PyGTK3 frontend to Neovim with some visual GUI elements.
+
+* Buffer list on the header bar
+* Tab list
 
 # Screenshot
 
