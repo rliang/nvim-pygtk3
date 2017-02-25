@@ -60,7 +60,7 @@ class NeovimWindow(Gtk.Window):
         Gtk.main()
 
     def _nvim_start(self):
-        selv.vim.options['showtabline'] = 0
+        self.vim.options['showtabline'] = 0
         self._nvim_update_background()
         self._nvim_subscribe_events('buffers', NeovimWindow.BUFFER_EVENTS)
         self._nvim_subscribe_events('tabs', NeovimWindow.TAB_EVENTS)
