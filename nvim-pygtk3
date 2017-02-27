@@ -8,21 +8,10 @@ import random
 import sys
 import threading
 
-class NeovimWindow(Gtk.Window):
+class NeovimWindow(Gtk.ApplicationWindow):
 
-    BUFFER_EVENTS = ['TextChanged',
-                     'InsertLeave',
-                     'BufEnter',
-                     'BufLeave',
-                     'BufWrite',
-                     'TermClose']
-    TAB_EVENTS = ['TabEnter',
-                  'TabLeave',
-                  'TabNew',
-                  'TabClosed']
-
-    def __init__(self):
-        Gtk.Window.__init__(self, title=GLib.get_prgname(), icon_name='vim')
+    def __init__(self, *args, **kwargs):
+        Gtk.ApplicationWindow.__init__(self, *args, **kwargs)
         self.header = Gtk.HeaderBar(title=self.get_title(),
                                     show_close_button=True)
         self.set_titlebar(self.header)
@@ -53,57 +42,66 @@ class NeovimWindow(Gtk.Window):
                             None,
                             None)
         self.vim = neovim.attach('tcp', port=port)
-        self.vte.connect('child-exited', Gtk.main_quit)
-        self.connect('delete-event', Gtk.main_quit)
+        self.vte.connect('child-exited', lambda *args: self.vte.get_toplevel().close())
         self.show_all()
-        threading.Thread(target=self._nvim_start, daemon=True).start()
+        threading.Thread(target=self._on_start_loop, daemon=True).start()
         Gtk.main()
 
-    def _nvim_start(self):
+    def _on_start_loop(self):
         self.vim.options['showtabline'] = 0
-        self._nvim_update_background()
-        self._nvim_subscribe_events('buffers', NeovimWindow.BUFFER_EVENTS)
-        self._nvim_subscribe_events('tabs', NeovimWindow.TAB_EVENTS)
-        self.vim.run_loop(lambda: None, self._nvim_on_notification)
+        self._update_background()
+        self._subscribe_events('buffers',
+                               'TextChanged',
+                               'InsertLeave',
+                               'BufEnter',
+                               'BufLeave',
+                               'BufWrite',
+                               'TermClose')
+        self._subscribe_events('tabs',
+                               'TabEnter',
+                               'TabLeave',
+                               'TabNew',
+                               'TabClosed')
+        self.vim.run_loop(lambda: None, self._on_notification)
 
-    def _nvim_update_background(self):
+    def _update_background(self):
         bgr = Gdk.RGBA()
         bgr.parse(self.vim.eval('synIDattr(hlID("Normal"),"bg")'))
         self.vte.set_color_background(bgr)
 
-    def _nvim_subscribe_events(self, label, events):
+    def _subscribe_events(self, label, *events):
         self.vim.subscribe(label)
         self.vim.command('au {} * call rpcnotify({}, "{}")'.format(','.join(events),
                                                                    self.vim.channel_id,
                                                                    label))
 
-    def _nvim_on_notification(self, label, data):
+    def _on_notification(self, label, data):
         if label == 'buffers':
-            buffers = self._nvim_get_buffers()
+            buffers = self._get_buffer_info()
             if self.buffers != buffers:
                 self.buffers = buffers
-                GLib.idle_add(self._nvim_refresh_buffers)
-            self._nvim_on_notification('tabs', None)
+                GLib.idle_add(self._refresh_buffers)
+            self._on_notification('tabs', None)
         if label == 'tabs':
-            tabs = self._nvim_get_tabs()
+            tabs = self._get_tab_info()
             if self.tabs != tabs:
                 self.tabs = tabs
-                GLib.idle_add(self._nvim_refresh_tabs)
+                GLib.idle_add(self._refresh_tab_list)
 
-    def _nvim_get_buffers(self):
-        return [(self._nvim_fname(b.name),
+    def _get_buffer_info(self):
+        return [(self._get_buffer_name(b.name),
                  self.vim.current.buffer == b,
                  self.vim.call('getbufvar', b.handle, '&mod'))
                 for b in sorted(self.vim.buffers, key=lambda b: b.handle)
                 if b.valid and b.name != '' and self.vim.call('buflisted', b.handle)]
 
-    def _nvim_get_tabs(self):
-        return [(self._nvim_fname(t.window.buffer.name),
+    def _get_tab_info(self):
+        return [(self._get_buffer_name(t.window.buffer.name),
                  self.vim.current.tabpage == t)
                 for t in sorted(self.vim.tabpages, key=lambda t: t.handle)
                 if t.valid]
 
-    def _nvim_refresh_buffers(self):
+    def _refresh_buffers(self):
         if len(self.buffers) is 0:
             self.header.set_custom_title(None)
             return
@@ -117,7 +115,7 @@ class NeovimWindow(Gtk.Window):
         self.header.set_custom_title(ssw)
         self.header.show_all()
 
-    def _nvim_refresh_tabs(self):
+    def _refresh_tab_list(self):
         self.ntb.destroy()
         self.ntb = Gtk.Notebook(parent=self.box)
         if len(self.tabs) < 2:
@@ -130,10 +128,13 @@ class NeovimWindow(Gtk.Window):
                 self.ntb.set_current_page(self.ntb.get_n_pages() - 1)
         self.ntb.show_all()
 
-    def _nvim_fname(self, name):
+    def _get_buffer_name(self, name):
         return self.vim.call('pathshorten', self.vim.call('fnamemodify', name, ':~:.'))
 
 
 if __name__ == '__main__':
-    GLib.set_prgname('Neovim')
-    NeovimWindow().start()
+    app = Gtk.Application(application_id='org.nvim-pygtk3')
+    app.connect('activate', lambda *args: NeovimWindow(application=app,
+                                                       title='Neovim',
+                                                       icon_name='vim').start())
+    app.run(sys.argv)
