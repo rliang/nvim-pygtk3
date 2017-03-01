@@ -18,7 +18,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.set_titlebar(self.header)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
                            parent=self)
-        self.ntb = Gtk.Notebook(parent=self.box)
+        self.ntb = None
         self.vte = Vte.Terminal(scrollback_lines=0,
                                 scroll_on_output=False,
                                 scroll_on_keystroke=True,
@@ -118,10 +118,11 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.header.show_all()
 
     def _refresh_tab_list(self):
-        self.ntb.destroy()
-        self.ntb = Gtk.Notebook(parent=self.box)
+        if self.ntb is not None:
+            self.ntb.destroy()
         if len(self.tabs) < 2:
             return
+        self.ntb = Gtk.Notebook(parent=self.box)
         for name, current in self.tabs:
             page = Gtk.Box()
             self.ntb.append_page(page, Gtk.Label(name if name != '' else '[No Name]'))
