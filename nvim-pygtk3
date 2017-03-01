@@ -4,7 +4,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib, Vte
 import neovim
-import random
+import uuid
+import time
 import sys
 import threading
 
@@ -30,18 +31,19 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.tabs = []
 
     def start(self):
-        port = random.randint(10000, 65535)
+        path = '/tmp/nvim{}'.format(uuid.uuid4())
         self.vte.spawn_sync(Vte.PtyFlags.DEFAULT,
                             None,
                             ['/usr/bin/nvim'] + sys.argv[1:],
-                            ['NVIM_LISTEN_ADDRESS=127.0.0.1:{}'.format(port),
+                            ['NVIM_LISTEN_ADDRESS={}'.format(path),
                              'NVIM_TUI_ENABLE_CURSOR_SHAPE=1',
                              'NVIM_TUI_ENABLE_TRUE_COLOR=1'],
                             GLib.SpawnFlags.DEFAULT,
                             None,
                             None,
                             None)
-        self.vim = neovim.attach('tcp', port=port)
+        time.sleep(0.01)
+        self.vim = neovim.attach('socket', path=path)
         self.vte.connect('child-exited', lambda *args: self.vte.get_toplevel().close())
         self.show_all()
         threading.Thread(target=self._on_start_loop, daemon=True).start()
