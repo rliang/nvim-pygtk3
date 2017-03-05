@@ -4,6 +4,7 @@ PyGTK3 frontend to Neovim with some visual GUI elements.
 
 * Buffer list on the header bar
 * Tab list
+* Automatically switches to GTK dark theme variant according to `&bg`
 
 # Screenshot
 
