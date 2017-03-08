@@ -12,7 +12,7 @@ import sys
 class NeovimWindow(Gtk.ApplicationWindow):
 
     CHANNEL_COLORSCHEME = 'color'
-    CHANNEL_BUFFERS = 'buffers'
+    CHANNEL_BUFS = 'bufs'
     CHANNEL_TABS = 'tabs'
 
     def __init__(self, *args, **kwargs):
@@ -32,7 +32,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.term.set_mouse_autohide(True)
         self.term.grab_focus()
         self.main_box.pack_end(self.term, True, True, 0)
-        self.current_buffers = []
+        self.current_bufs = []
         self.current_tabs = []
         self.path = os.path.join(GLib.get_tmp_dir(), 'nvim-{}').format(uuid.uuid4())
 
@@ -60,7 +60,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self._widget_update_background()
         self._nvim_subscribe_events(NeovimWindow.CHANNEL_COLORSCHEME,
                                     'ColorScheme')
-        self._nvim_subscribe_events(NeovimWindow.CHANNEL_BUFFERS,
+        self._nvim_subscribe_events(NeovimWindow.CHANNEL_BUFS,
                                     'TextChanged',
                                     'InsertLeave',
                                     'BufEnter',
@@ -93,23 +93,23 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def _nvim_handle_notification(self, label, *args):
         if label == NeovimWindow.CHANNEL_COLORSCHEME:
             self._widget_update_background()
-        if label == NeovimWindow.CHANNEL_BUFFERS:
-            buffers = self._nvim_get_buffers_info()
-            if self.current_buffers != buffers:
-                self.current_buffers = buffers
+        if label == NeovimWindow.CHANNEL_BUFS:
+            bufs = self._nvim_get_bufs_info()
+            if self.current_bufs != bufs:
+                self.current_bufs = bufs
                 GLib.idle_add(self._widget_refresh_buffer_list)
-            self._nvim_handle_notification(NeovimWindow.CHANNEL_TABS)
+            label = NeovimWindow.CHANNEL_TABS
         if label == NeovimWindow.CHANNEL_TABS:
             tabs = self._nvim_get_tabs_info()
             if self.current_tabs != tabs:
                 self.current_tabs = tabs
                 GLib.idle_add(self._widget_refresh_tab_list)
 
-    def _nvim_get_buffers_info(self):
+    def _nvim_get_bufs_info(self):
         return [(self._nvim_get_buffer_name(b.name),
                  self.vim.current.buffer == b,
                  self.vim.call('getbufvar', b.handle, '&mod'))
-                for b in sorted(self.vim.buffers, key=lambda b: b.handle)
+                for b in sorted(self.vim.bufs, key=lambda b: b.handle)
                 if b.valid and self.vim.call('buflisted', b.handle)]
 
     def _nvim_get_tabs_info(self):
@@ -123,11 +123,11 @@ class NeovimWindow(Gtk.ApplicationWindow):
                 if name != '' else '[No Name]')
 
     def _widget_refresh_buffer_list(self):
-        if len(self.current_buffers) is 0:
+        if len(self.current_bufs) is 0:
             self.titlebar.set_custom_title(None)
             return
         ssw = Gtk.StackSwitcher()
-        for name, active, modified in self.current_buffers:
+        for name, active, modified in self.current_bufs:
             Gtk.ToggleButton(name,
                              active=active,
                              image=(Gtk.Image(icon_name='document-edit-symbolic')
