@@ -2,7 +2,7 @@
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib, Gio, Vte
+from gi.repository import Gtk, Gdk, GLib, Gio, Vte, Pango
 import neovim
 import uuid
 import os.path
@@ -48,6 +48,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
                                     None,
                                     None):
             self.close()
+        self.gio_settings.connect('changed', lambda *args: self._widget_update_font())
         self.term.connect('child-exited', lambda *args: self.term.get_toplevel().close())
         self.show_all()
         threading.Thread(target=self._nvim_start_loop, daemon=True).start()
@@ -55,7 +56,8 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def _nvim_start_loop(self):
         self.vim = neovim.attach('socket', path=self.path)
         self.vim.options['showtabline'] = 0
-        self._nvim_update_background()
+        self._widget_update_font()
+        self._widget_update_background()
         self._nvim_subscribe_events(NeovimWindow.CHANNEL_COLORSCHEME,
                                     'ColorScheme')
         self._nvim_subscribe_events(NeovimWindow.CHANNEL_BUFFERS,
@@ -72,7 +74,11 @@ class NeovimWindow(Gtk.ApplicationWindow):
                                     'TabClosed')
         self.vim.run_loop(lambda: None, self._nvim_handle_notification)
 
-    def _nvim_update_background(self):
+    def _widget_update_font(self):
+        name = self.gio_settings.get_string('monospace-font-name')
+        self.term.set_font(Pango.FontDescription(string=name))
+
+    def _widget_update_background(self):
         self.gtk_settings.props.gtk_application_prefer_dark_theme = self.vim.options['bg'] == 'dark'
         rgba = Gdk.RGBA()
         rgba.parse(self.vim.eval('synIDattr(hlID("Normal"),"bg")'))
@@ -86,7 +92,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     def _nvim_handle_notification(self, label, *args):
         if label == NeovimWindow.CHANNEL_COLORSCHEME:
-            self._nvim_update_background()
+            self._widget_update_background()
         if label == NeovimWindow.CHANNEL_BUFFERS:
             buffers = self._nvim_get_buffers_info()
             if self.current_buffers != buffers:
@@ -122,9 +128,11 @@ class NeovimWindow(Gtk.ApplicationWindow):
             return
         ssw = Gtk.StackSwitcher()
         for name, active, modified in self.current_buffers:
-            Gtk.ToggleButton(name, active=active,
-                             image=Gtk.Image(icon_name='document-edit-symbolic')
-                             if modified else None, always_show_image=modified,
+            Gtk.ToggleButton(name,
+                             active=active,
+                             image=(Gtk.Image(icon_name='document-edit-symbolic')
+                                    if modified else None),
+                             always_show_image=modified,
                              parent=ssw)
         self.titlebar.set_custom_title(ssw)
         self.titlebar.show_all()
