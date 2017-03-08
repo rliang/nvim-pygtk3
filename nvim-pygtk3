@@ -18,7 +18,6 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.gio_settings = Gio.Settings('org.gnome.desktop.interface')
-        self.gtk_settings = Gtk.Settings.get_default()
         self.titlebar = Gtk.HeaderBar(title=self.get_title(),
                                       show_close_button=True)
         self.set_titlebar(self.titlebar)
@@ -79,7 +78,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.term.set_font(Pango.FontDescription(string=name))
 
     def _widget_update_background(self):
-        self.gtk_settings.props.gtk_application_prefer_dark_theme = self.vim.options['bg'] == 'dark'
+        self.get_settings().props.gtk_application_prefer_dark_theme = self.vim.options['bg'] == 'dark'
         rgba = Gdk.RGBA()
         rgba.parse(self.vim.eval('synIDattr(hlID("Normal"),"bg")'))
         self.term.set_color_background(rgba)
