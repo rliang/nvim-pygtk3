@@ -15,9 +15,8 @@ class NeovimWindow(Gtk.ApplicationWindow):
     CHANNEL_BUFFERS = 'buffers'
     CHANNEL_TABS = 'tabs'
 
-    def __init__(self, argv, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.argv = argv
         self.gio_settings = Gio.Settings('org.gnome.desktop.interface')
         self.gtk_settings = Gtk.Settings.get_default()
         self.titlebar = Gtk.HeaderBar(title=self.get_title(),
@@ -37,10 +36,10 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.current_tabs = []
         self.path = os.path.join(GLib.get_tmp_dir(), 'nvim-{}').format(uuid.uuid4())
 
-    def start(self):
+    def start(self, argv):
         if not self.term.spawn_sync(Vte.PtyFlags.DEFAULT,
                                     None,
-                                    ['nvim'] + self.argv,
+                                    ['nvim'] + argv,
                                     ['NVIM_LISTEN_ADDRESS={}'.format(self.path),
                                      'NVIM_TUI_ENABLE_CURSOR_SHAPE=1',
                                      'NVIM_TUI_ENABLE_TRUE_COLOR=1'],
@@ -152,8 +151,8 @@ class NeovimApplication(Gtk.Application):
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
 
     def do_command_line(self, command_line):
-        NeovimWindow(command_line.get_arguments(), title='Neovim',
-                     application=self).start()
+        window = NeovimWindow(title='Neovim', application=self)
+        window.start(command_line.get_arguments())
 
 
 if __name__ == '__main__':
