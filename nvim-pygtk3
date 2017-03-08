@@ -114,7 +114,8 @@ class NeovimWindow(Gtk.ApplicationWindow):
                 if t.valid]
 
     def _nvim_get_buffer_name(self, name):
-        return self.vim.call('pathshorten', self.vim.call('fnamemodify', name, ':~:.'))
+        return (self.vim.call('pathshorten', self.vim.call('fnamemodify', name, ':~:.'))
+                if name != '' else '[No Name]')
 
     def _widget_refresh_buffer_list(self):
         if len(self.current_buffers) is 0:
@@ -122,11 +123,9 @@ class NeovimWindow(Gtk.ApplicationWindow):
             return
         ssw = Gtk.StackSwitcher()
         for name, active, modified in self.current_buffers:
-            Gtk.ToggleButton(name if name != '' else '[No Name]',
-                             active=active,
+            Gtk.ToggleButton(name, active=active,
                              image=Gtk.Image(icon_name='document-edit-symbolic')
-                             if modified else None,
-                             always_show_image=modified,
+                             if modified else None, always_show_image=modified,
                              parent=ssw)
         self.titlebar.set_custom_title(ssw)
         self.titlebar.show_all()
@@ -139,7 +138,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.notebook = Gtk.Notebook(parent=self.main_box)
         for name, active in self.current_tabs:
             page = Gtk.Box()
-            self.notebook.append_page(page, Gtk.Label(name if name != '' else '[No Name]'))
+            self.notebook.append_page(page, Gtk.Label(name))
             page.show_all()
             if active:
                 self.notebook.set_current_page(self.notebook.get_n_pages() - 1)
