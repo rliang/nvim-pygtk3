@@ -2,12 +2,13 @@ PREFIX?=${HOME}/.local
 
 BIN=${PREFIX}/bin/nvim-pygtk3
 ICON=${PREFIX}/share/icons/hicolor/scalable/apps/nvim-pygtk3.svg
-ENTRY=${PREFIX}/share/applications/nvim-pygtk3.desktop
+APP=${PREFIX}/share/applications/nvim-pygtk3.desktop
+TERM=${PREFIX}/share/applications/nvim-pygtk3-term.desktop
 
-install: ${BIN} ${ICON} ${ENTRY}
+install: ${BIN} ${ICON} ${APP} ${TERM}
 
 uninstall:
-	rm ${BIN} ${ICON} ${ENTRY}
+	rm ${BIN} ${ICON} ${APP} ${TERM}
 
 ${BIN}: nvim-pygtk3
 	install -Dm755 $^ $@
@@ -15,6 +16,8 @@ ${BIN}: nvim-pygtk3
 ${ICON}: neovim.svg
 	install -Dm644 $^ $@
 
-${ENTRY}: nvim-pygtk3.desktop
+${APP}: nvim-pygtk3.desktop
 	install -Dm644 $^ $@
-	sed -i "s|{PREFIX}|${PREFIX}|" $@
+
+${TERM}: nvim-pygtk3-term.desktop
+	install -Dm644 $^ $@

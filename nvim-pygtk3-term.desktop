@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim Terminal
+Icon=nvim-pygtk3
+Exec=nvim-pygtk3 +term
+Comment=PyGTK3 front-end for the Neovim text editor (Terminal)
+Categories=GTK;TerminalEmulator;
