@@ -9,146 +9,216 @@ import os.path
 import threading
 import sys
 
-class NeovimWindow(Gtk.ApplicationWindow):
 
-    CHANNEL_COLORSCHEME = 'color'
-    CHANNEL_BUFS = 'bufs'
-    CHANNEL_TABS = 'tabs'
+class NeovimColors(object):
+
+    EVENTS = ['ColorScheme']
+
+    def __init__(self, win):
+        self.win = win
+        self.settings = self.win.get_settings()
+
+    def do_gtk_start(self):
+        pass
+
+    def do_vim_start(self):
+        self._update()
+        self.win.vim_connect_au(NeovimColors.EVENTS, '*', self._update)
+
+    def _update(self):
+        dark = self.win.vim.options['bg'] == 'dark'
+        self.settings.props.gtk_application_prefer_dark_theme = dark
+        rgba = Gdk.RGBA()
+        rgba.parse(self.win.vim.eval('synIDattr(hlID("Normal"),"bg")'))
+        self.win.term.set_color_background(rgba)
+
+
+class NeovimFont(object):
+
+    def __init__(self, win):
+        self.win = win
+        self.settings = Gio.Settings('org.gnome.desktop.interface')
+
+    def do_gtk_start(self):
+        self.settings.connect('changed', lambda *args: self._update())
+
+    def do_vim_start(self):
+        self._update()
+
+    def _update(self):
+        font = self.settings.get_string('monospace-font-name')
+        self.win.term.set_font(Pango.FontDescription(string=font))
+
+
+class NeovimBufbar(object):
+
+    EVENTS = ['TextChanged',
+              'InsertLeave',
+              'BufEnter',
+              'BufLeave',
+              'BufWrite',
+              'TabClosed',
+              'TermClose']
+
+    def __init__(self, win):
+        self.win = win
+        self.bufs = []
+        self.widget = Gtk.HeaderBar(title=self.win.get_title(),
+                                    show_close_button=True)
+
+    def do_gtk_start(self):
+        self.win.set_titlebar(self.widget)
+        self.widget.show_all()
+
+    def do_vim_start(self):
+        self.win.vim_connect_au(NeovimBufbar.EVENTS, '*', self._update)
+
+    def _fetch(self):
+        return [(self.win.vim_bufname(b.name),
+                 self.win.vim.current.buffer == b,
+                 self.win.vim.call('getbufvar', b.handle, '&mod'))
+                for b in sorted(self.win.vim.buffers, key=lambda b: b.handle)
+                if b.valid and self.win.vim.call('buflisted', b.handle)]
+
+    def _update(self):
+        info = self._fetch()
+        if self.bufs != info:
+            self.bufs = info
+            GLib.idle_add(self._update_widget)
+
+    def _update_widget(self):
+        if not self.bufs:
+            self.widget.set_custom_title(None)
+            return
+        ssw = Gtk.StackSwitcher()
+        for name, cur, mod in self.bufs:
+            Gtk.ToggleButton(name, parent=ssw, active=cur,
+                             image=Gtk.Image(icon_name='document-edit-symbolic'),
+                             always_show_image=mod)
+        self.widget.set_custom_title(ssw)
+        self.widget.show_all()
+
+
+class NeovimTabbar(object):
+
+    EVENTS = ['TabEnter',
+              'TabLeave',
+              'TabNew',
+              'TabClosed',
+              'BufEnter',
+              'BufLeave',
+              'TermClose']
+
+    def __init__(self, win):
+        self.win = win
+        self.tabs = []
+        self.widget = Gtk.Notebook()
+
+    def do_gtk_start(self):
+        pass
+
+    def do_vim_start(self):
+        self.win.vim.options['showtabline'] = 0
+        self.win.vim_connect_au(NeovimTabbar.EVENTS, '*', self._update)
+
+    def _fetch(self):
+        return [(self.win.vim_bufname(t.window.buffer.name),
+                 self.win.vim.current.tabpage == t)
+                for t in sorted(self.win.vim.tabpages, key=lambda t: t.handle)
+                if t.valid]
+
+    def _update(self):
+        info = self._fetch()
+        if self.tabs != info:
+            self.tabs = info
+            GLib.idle_add(self._update_widget)
+
+    def _update_widget(self):
+        self.widget.destroy()
+        self.widget = Gtk.Notebook()
+        if len(self.tabs) < 2:
+            return
+        for name, cur in self.tabs:
+            page = Gtk.Box()
+            self.widget.append_page(page, Gtk.Label(name))
+            page.show_all()
+            if cur:
+                self.widget.set_current_page(self.widget.get_n_pages() - 1)
+        self.win.box.pack_start(self.widget, False, True, 0)
+        self.widget.show_all()
+
+
+class NeovimWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gio_settings = Gio.Settings('org.gnome.desktop.interface')
-        self.titlebar = Gtk.HeaderBar(title=self.get_title(),
-                                      show_close_button=True)
-        self.set_titlebar(self.titlebar)
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
-                                parent=self)
-        self.notebook = None
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
+                           parent=self)
         self.term = Vte.Terminal(scrollback_lines=0,
                                  scroll_on_output=False,
                                  scroll_on_keystroke=True,
-                                 rewrap_on_resize=True)
-        self.term.set_mouse_autohide(True)
+                                 rewrap_on_resize=False)
+        self.box.pack_end(self.term, True, True, 0)
         self.term.grab_focus()
-        self.main_box.pack_end(self.term, True, True, 0)
-        self.current_bufs = []
-        self.current_tabs = []
+        self.term.set_mouse_autohide(True)
         self.path = os.path.join(GLib.get_tmp_dir(), 'nvim-{}').format(uuid.uuid4())
+        self.modules = [NeovimBufbar(self),
+                        NeovimTabbar(self),
+                        NeovimColors(self),
+                        NeovimFont(self)]
 
     def start(self, argv):
-        if not self.term.spawn_sync(Vte.PtyFlags.DEFAULT,
-                                    None,
-                                    ['nvim'] + argv,
-                                    ['NVIM_LISTEN_ADDRESS={}'.format(self.path),
-                                     'NVIM_TUI_ENABLE_CURSOR_SHAPE=1',
-                                     'NVIM_TUI_ENABLE_TRUE_COLOR=1'],
-                                    GLib.SpawnFlags.SEARCH_PATH,
-                                    None,
-                                    None,
-                                    None):
+        spawn_args = [Vte.PtyFlags.DEFAULT,
+                      None,
+                      ['nvim', *argv],
+                      ['NVIM_LISTEN_ADDRESS={}'.format(self.path),
+                       'NVIM_TUI_ENABLE_CURSOR_SHAPE=1',
+                       'NVIM_TUI_ENABLE_TRUE_COLOR=1'],
+                      GLib.SpawnFlags.SEARCH_PATH,
+                      None,
+                      None,
+                      None]
+        if not self.term.spawn_sync(*spawn_args):
             self.close()
-        self.gio_settings.connect('changed', lambda *args: self._widget_update_font())
         self.term.connect('child-exited', lambda *args: self.term.get_toplevel().close())
         self.show_all()
-        threading.Thread(target=self._nvim_start_loop, daemon=True).start()
+        self.connect('notify::is-maximized', lambda *args: GLib.idle_add(self.do_resize))
+        for module in self.modules:
+            module.do_gtk_start()
+        threading.Thread(target=self.vim_start_loop, daemon=True).start()
 
-    def _nvim_start_loop(self):
+    def do_resize(self):
+        rows = self.term.get_row_count()
+        cols = self.term.get_column_count()
+        self.term.props.pty.set_size(rows - 1, cols - 1)
+        self.term.props.pty.set_size(rows, cols)
+
+    def vim_add_callback(self, callback, *args):
+        id = str(len(self.vim_callbacks))
+        self.vim.subscribe(id)
+        self.vim_callbacks[id] = callback
+        args = ','.join(['"{}"'.format(id), *args])
+        return 'rpcnotify({},{})'.format(self.vim.channel_id, args)
+
+    def vim_connect_au(self, events, pattern, callback, *args):
+        cb = self.vim_add_callback(callback, *args)
+        events = ','.join(events)
+        self.vim.command('au {} {} cal {}'.format(events, pattern, cb))
+
+    def vim_bufname(self, name):
+        return (self.vim.eval('pathshorten(fnamemodify("{}",":~:."))'.format(name))
+                if name else '[No Name]')
+
+    def vim_start_loop(self):
+        self.vim_callbacks = {}
         self.vim = neovim.attach('socket', path=self.path)
-        self.vim.options['showtabline'] = 0
-        self._widget_update_font()
-        self._widget_update_background()
-        self._nvim_subscribe_events(NeovimWindow.CHANNEL_COLORSCHEME,
-                                    'ColorScheme')
-        self._nvim_subscribe_events(NeovimWindow.CHANNEL_BUFS,
-                                    'TextChanged',
-                                    'InsertLeave',
-                                    'BufEnter',
-                                    'BufLeave',
-                                    'BufWrite',
-                                    'TermClose')
-        self._nvim_subscribe_events(NeovimWindow.CHANNEL_TABS,
-                                    'TabEnter',
-                                    'TabLeave',
-                                    'TabNew',
-                                    'TabClosed')
-        self.vim.run_loop(lambda: None, self._nvim_handle_notification)
+        for module in self.modules:
+            module.do_vim_start()
+        self.vim.run_loop(lambda: None, self.do_vim_event)
 
-    def _widget_update_font(self):
-        name = self.gio_settings.get_string('monospace-font-name')
-        self.term.set_font(Pango.FontDescription(string=name))
-
-    def _widget_update_background(self):
-        self.get_settings().props.gtk_application_prefer_dark_theme = self.vim.options['bg'] == 'dark'
-        rgba = Gdk.RGBA()
-        rgba.parse(self.vim.eval('synIDattr(hlID("Normal"),"bg")'))
-        self.term.set_color_background(rgba)
-
-    def _nvim_subscribe_events(self, label, *events):
-        self.vim.subscribe(label)
-        self.vim.command('au {} * call rpcnotify({}, "{}")'.format(','.join(events),
-                                                                   self.vim.channel_id,
-                                                                   label))
-
-    def _nvim_handle_notification(self, label, *args):
-        if label == NeovimWindow.CHANNEL_COLORSCHEME:
-            self._widget_update_background()
-        if label == NeovimWindow.CHANNEL_BUFS:
-            bufs = self._nvim_get_bufs_info()
-            if self.current_bufs != bufs:
-                self.current_bufs = bufs
-                GLib.idle_add(self._widget_refresh_buffer_list)
-            label = NeovimWindow.CHANNEL_TABS
-        if label == NeovimWindow.CHANNEL_TABS:
-            tabs = self._nvim_get_tabs_info()
-            if self.current_tabs != tabs:
-                self.current_tabs = tabs
-                GLib.idle_add(self._widget_refresh_tab_list)
-
-    def _nvim_get_bufs_info(self):
-        return [(self._nvim_get_buffer_name(b.name),
-                 self.vim.current.buffer == b,
-                 self.vim.call('getbufvar', b.handle, '&mod'))
-                for b in sorted(self.vim.buffers, key=lambda b: b.handle)
-                if b.valid and self.vim.call('buflisted', b.handle)]
-
-    def _nvim_get_tabs_info(self):
-        return [(self._nvim_get_buffer_name(t.window.buffer.name),
-                 self.vim.current.tabpage == t)
-                for t in sorted(self.vim.tabpages, key=lambda t: t.handle)
-                if t.valid]
-
-    def _nvim_get_buffer_name(self, name):
-        return (self.vim.call('pathshorten', self.vim.call('fnamemodify', name, ':~:.'))
-                if name != '' else '[No Name]')
-
-    def _widget_refresh_buffer_list(self):
-        if len(self.current_bufs) is 0:
-            self.titlebar.set_custom_title(None)
-            return
-        ssw = Gtk.StackSwitcher()
-        for name, active, modified in self.current_bufs:
-            Gtk.ToggleButton(name,
-                             active=active,
-                             image=(Gtk.Image(icon_name='document-edit-symbolic')
-                                    if modified else None),
-                             always_show_image=modified,
-                             parent=ssw)
-        self.titlebar.set_custom_title(ssw)
-        self.titlebar.show_all()
-
-    def _widget_refresh_tab_list(self):
-        if self.notebook is not None:
-            self.notebook.destroy()
-        if len(self.current_tabs) < 2:
-            return
-        self.notebook = Gtk.Notebook(parent=self.main_box)
-        for name, active in self.current_tabs:
-            page = Gtk.Box()
-            self.notebook.append_page(page, Gtk.Label(name))
-            page.show_all()
-            if active:
-                self.notebook.set_current_page(self.notebook.get_n_pages() - 1)
-        self.notebook.show_all()
+    def do_vim_event(self, label, args):
+        if label in self.vim_callbacks:
+            self.vim_callbacks[label](*args)
 
 
 class NeovimApplication(Gtk.Application):
@@ -158,8 +228,8 @@ class NeovimApplication(Gtk.Application):
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
 
     def do_command_line(self, command_line):
-        window = NeovimWindow(title='Neovim', application=self)
-        window.start(command_line.get_arguments())
+        win = NeovimWindow(title='Neovim', application=self)
+        win.start(command_line.get_arguments())
 
 
 if __name__ == '__main__':
