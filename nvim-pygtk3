@@ -108,7 +108,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         return [(self._nvim_get_buffer_name(b.name),
                  self.vim.current.buffer == b,
                  self.vim.call('getbufvar', b.handle, '&mod'))
-                for b in sorted(self.vim.bufs, key=lambda b: b.handle)
+                for b in sorted(self.vim.buffers, key=lambda b: b.handle)
                 if b.valid and self.vim.call('buflisted', b.handle)]
 
     def _nvim_get_tabs_info(self):
