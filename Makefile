@@ -1,18 +1,18 @@
 PREFIX?=${HOME}/.local
 
-EXEC=${PREFIX}/bin/nvim-pygtk3
-ICON=${PREFIX}/share/icons/hicolor/256x256/apps/nvim-pygtk3.png
+BIN=${PREFIX}/bin/nvim-pygtk3
+ICON=${PREFIX}/share/icons/hicolor/scalable/apps/nvim-pygtk3.svg
 ENTRY=${PREFIX}/share/applications/nvim-pygtk3.desktop
 
-install: ${EXEC} ${ICON} ${ENTRY}
+install: ${BIN} ${ICON} ${ENTRY}
 
 uninstall:
-	rm ${EXEC} ${ICON} ${ENTRY}
+	rm ${BIN} ${ICON} ${ENTRY}
 
-${EXEC}: nvim-pygtk3
+${BIN}: nvim-pygtk3
 	install -Dm755 $^ $@
 
-${ICON}: neovim.png
+${ICON}: neovim.svg
 	install -Dm644 $^ $@
 
 ${ENTRY}: nvim-pygtk3.desktop
