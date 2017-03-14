@@ -164,8 +164,9 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.path = os.path.join(GLib.get_tmp_dir(), 'nvim-{}').format(uuid.uuid4())
         self.modules = [NeovimBufbar(self),
                         NeovimTabbar(self),
-                        NeovimColors(self),
-                        NeovimFont(self)]
+                        NeovimColors(self)]
+        if Gio.SettingsSchemaSource.get_default().lookup('org.gnome.desktop.interface', True):
+            self.modules.append(NeovimFont(self))
 
     def start(self, argv):
         spawn_args = [Vte.PtyFlags.DEFAULT,
