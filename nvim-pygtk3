@@ -103,7 +103,7 @@ class NeovimBufbar(object):
         ssw = Gtk.StackSwitcher()
         for name, cur, mod in self.bufs:
             Gtk.ToggleButton(name, parent=ssw, active=cur,
-                             image=Gtk.Image(icon_name='document-edit-symbolic'),
+                             image=Gtk.Image(icon_name='document-edit-symbolic') if mod else None,
                              always_show_image=mod)
         self.widget.set_custom_title(ssw)
         self.widget.show_all()
