@@ -161,7 +161,10 @@ class NeovimTabbar(object):
 class NeovimWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args,
+                         default_width=640,
+                         default_height=480,
+                         **kwargs)
         self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,
                            parent=self)
         self.term = Vte.Terminal(scrollback_lines=0,
