@@ -180,7 +180,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def start(self, argv):
         spawn_args = [Vte.PtyFlags.DEFAULT,
                       None,
-                      ['nvim', *argv],
+                      ['nvim', '+runtime! ginit.vim', *argv],
                       ['NVIM_LISTEN_ADDRESS={}'.format(self.path),
                        'NVIM_TUI_ENABLE_CURSOR_SHAPE=1'],
                       GLib.SpawnFlags.SEARCH_PATH,
