@@ -84,7 +84,8 @@ class NeovimBufbar(object):
         self.win.vim_connect_au(NeovimBufbar.EVENTS, '*', self._vim_update)
 
     def _vim_fetch(self):
-        return [(self.win.vim_bufname(b.name),
+        return [(b.handle,
+                 self.win.vim_bufname(b.name),
                  self.win.vim.current.buffer == b,
                  self.win.vim.call('getbufvar', b.handle, '&mod'))
                 for b in sorted(self.win.vim.buffers, key=lambda b: b.handle)
@@ -101,10 +102,11 @@ class NeovimBufbar(object):
             self.widget.set_custom_title(None)
             return
         ssw = Gtk.StackSwitcher()
-        for name, cur, mod in self.bufs:
-            Gtk.ToggleButton(name, parent=ssw, active=cur,
-                             image=Gtk.Image(icon_name='document-edit-symbolic') if mod else None,
-                             always_show_image=mod)
+        for id, name, cur, mod in self.bufs:
+            btn = Gtk.ToggleButton(name, parent=ssw, active=cur,
+                                   image=Gtk.Image(icon_name='document-edit-symbolic') if mod else None,
+                                   always_show_image=mod)
+            btn.connect('clicked', lambda btn, id: self.win.vim.command('b {}'.format(id), async=True), id)
         self.widget.set_custom_title(ssw)
         self.widget.show_all()
 
