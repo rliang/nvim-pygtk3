@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Neovim
+Name=Neovim (PyGTK3)
 Icon=neovim
 Exec=nvim-pygtk3 -- %F
 Comment=PyGTK3 front-end for the Neovim text editor
