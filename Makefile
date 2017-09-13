@@ -1,4 +1,5 @@
 PREFIX?=${HOME}/.local
+PYTHON?=python
 
 BIN=${PREFIX}/bin/nvim-pygtk3
 ICON=${PREFIX}/share/icons/hicolor/scalable/apps/neovim.svg
@@ -10,7 +11,7 @@ install: ${BIN} ${ICON} ${APP} ${TERM}
 uninstall:
 	rm ${BIN} ${ICON} ${APP} ${TERM}
 
-${BIN}: nvim-pygtk3
+${BIN}: nvim-pygtk3.out
 	install -Dm755 $^ $@
 
 ${ICON}: neovim.svg
@@ -21,3 +22,11 @@ ${APP}: nvim-pygtk3.desktop
 
 ${TERM}: nvim-pygtk3-term.desktop
 	install -Dm644 $^ $@
+
+clean:
+	rm -f nvim-pygtk3.out
+
+nvim-pygtk3.out: nvim-pygtk3
+	sed -n '1s| python$$| ${PYTHON}|;w $^.out' $^
+
+.PHONY: nvim-pygtk3.out clean
