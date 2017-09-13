@@ -25,3 +25,22 @@ $ PREFIX=/usr sudo make install
 ```vim
 Plug 'rliang/nvim-pygtk3', {'do': 'make install'}
 ```
+
+## Custom python interpreter
+
+If you see a message like...
+
+```
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ImportError: No module named 'gi'
+python executable 'python' doesnot satisfies dependencies gi and/or neovim
+Makefile:34: recipe for target 'nvim-pygtk3.out' failed
+make: *** [nvim-pygtk3.out] Error 1
+```
+
+... you can tell make another python location that met the needed dependencies
+
+```sh
+$ PREFIX=/usr sudo make install PYTHON=/usr/bin/python3
+```
