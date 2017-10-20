@@ -32,7 +32,11 @@ class NeovimColors(object):
 
     def _gtk_update(self, dark, color):
         self.settings.props.gtk_application_prefer_dark_theme = dark
-        self.rgba.parse(color)
+        if color != 'None':
+            self.rgba.parse(color)
+        else:
+            sc = self.win.term.get_style_context()
+            self.rgba = sc.get_background_color(sc.get_state())
         self.win.term.set_color_background(self.rgba)
 
 
