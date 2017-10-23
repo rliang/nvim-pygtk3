@@ -2,31 +2,28 @@
 
 PyGTK3 frontend to Neovim with some visual GUI elements.
 
-* Buffer list on the header bar
+* Buffer list on header bar
 * Tab list
 * Applies GTK's light/dark themes according to `&bg`
-* Applies font from GSettings' `org.gnome.desktop.interface`
-  `monospace-font-name`
+* Applies font from `:GuiFont`, or from GSettings'
+  `org.gnome.desktop.interface:monospace-font-name`
+* Customizable with Python scripts
 
-# Screenshot
+## Preview
 
 ![](screenshot.png)
 
-# Installation
+## Installation
 
-## System-wide
+Requirements:
+
+* `python-neovim`
+* `python-gobject`
+* `vte3`
 
 ```sh
 $ PREFIX=/usr sudo make install
 ```
-
-## Per-user through init.vim
-
-```vim
-Plug 'rliang/nvim-pygtk3', {'do': 'make install'}
-```
-
-## Custom python interpreter
 
 If you see a message like...
 
@@ -42,5 +39,43 @@ make: *** [nvim-pygtk3.out] Error 1
 ... you can tell make another python location that met the needed dependencies
 
 ```sh
-$ PREFIX=/usr sudo make install PYTHON=/usr/bin/python3
+$ PREFIX=/usr PYTHON=/usr/bin/python3 sudo make install
+```
+
+## Python scripts
+
+Scripts in `$XDG_CONFIG_HOME/nvim-pygtk3/*.py` are `exec`'d at startup,
+exposing the following globals:
+
+* `connect`: Utility wrapper to connect GObject signals.
+* `window`: The GTK top-level window.
+  [Docs](https://developer.gnome.org/gtk3/unstable/GtkApplicationWindow.html)
+  * `window.terminal`: The VTE terminal that hosts neovim.
+    [Docs](https://developer.gnome.org/vte/unstable/VteTerminal.html)
+  * `window.switcher`: The GtkStackSwitcher that displays buffers.
+    [Docs](https://developer.gnome.org/gtk3/unstable/GtkStackSwitcher.html)
+  * `window.notebook`: The GtkNotebook that displays tabs and hosts the
+    terminal.
+    [Docs](https://developer.gnome.org/gtk3/unstable/GtkNotebook.html)
+
+The `window` object has the following additional signals:
+
+* `nvim-setup`: Emitted when neovim has started.
+* `nvim-notify`: Emitted when neovim has notified the GUI.
+
+Example script `~/.config/nvim-pygtk3/a.py`:
+
+```python
+@connect(window, 'nvim-setup')
+def a(nvim):
+    nvim.command(f'call rpcnotify({nvim.channel_id}, "hello", "world")')
+
+@connect(window, 'nvim-notify')
+def b(nvim, event, args):
+    if event == 'hello':
+        print('hello', args)
+
+@connect(window.terminal, 'cursor-moved')
+def c():
+    print('cursor moved!')
 ```
