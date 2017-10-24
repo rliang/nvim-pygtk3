@@ -2,6 +2,7 @@
 
 PyGTK3 frontend to Neovim with some visual GUI elements.
 
+* Provides GTK's clipboard (no need for xclip/xsel)
 * Buffer list on header bar
 * Tab list
 * Applies GTK's light/dark themes according to `&bg`
@@ -17,29 +18,21 @@ PyGTK3 frontend to Neovim with some visual GUI elements.
 
 Requirements:
 
+* `python-setuptools` (make)
 * `python-neovim`
 * `python-gobject`
 * `vte3`
 
-```sh
-$ PREFIX=/usr sudo make install
-```
-
-If you see a message like...
-
-```
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ImportError: No module named 'gi'
-python executable 'python' doesnot satisfies dependencies gi and/or neovim
-Makefile:34: recipe for target 'nvim-pygtk3.out' failed
-make: *** [nvim-pygtk3.out] Error 1
-```
-
-... you can tell make another python location that met the needed dependencies
+Per-user:
 
 ```sh
-$ PREFIX=/usr PYTHON=/usr/bin/python3 sudo make install
+$ python setup.py install --user --root=/
+```
+
+System-wide:
+
+```sh
+$ sudo python setup.py install --root=/
 ```
 
 ## Python scripts
@@ -79,3 +72,7 @@ def b(nvim, event, args):
 def c():
     print('cursor moved!')
 ```
+
+## Known issues
+
+* Clicking tabs doesn't work.
