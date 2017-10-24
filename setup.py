@@ -20,5 +20,5 @@ setup(name='nvim-pygtk3',
       data_files=[('share/applications',
                    ['share/applications/nvim-pygtk3.desktop',
                     'share/applications/nvim-pygtk3-term.desktop']),
-                  ('share/icons/hicolor/scalable',
-                   ['share/icons/hicolor/scalable/neovim.svg'])])
+                  ('share/icons/hicolor/scalable/apps',
+                   ['share/icons/hicolor/scalable/apps/neovim.svg'])])
