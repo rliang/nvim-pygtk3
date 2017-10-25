@@ -29,17 +29,11 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def spawn(self, addr, argv, rtp):
         def callback(*_):
             self.terminal.disconnect(once)
-            nvim = neovim.attach('socket', path=addr)
-            nvim.subscribe('Gui')
-            nvim.vars['gui_channel'] = nvim.channel_id
-            nvim.options['showtabline'] = 0
-            nvim.options['rtp'] = ",".join([rtp, *nvim.list_runtime_paths()])
-            nvim.command('ru! ginit.vim', async=True)
-            self.emit('nvim-setup', nvim)
+            self.emit('nvim-setup', neovim.attach('socket', path=addr))
         once = self.terminal.connect('cursor-moved', callback)
         self.terminal.spawn_sync(Vte.PtyFlags.DEFAULT,
                                  None,
-                                 ['nvim', *argv],
+                                 ['nvim', f'+set rtp^={rtp}', *argv],
                                  [f'NVIM_LISTEN_ADDRESS={addr}'],
                                  GLib.SpawnFlags.SEARCH_PATH,
                                  None,
@@ -48,6 +42,10 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     @GObject.Signal(flags=GObject.SignalFlags.RUN_LAST)
     def nvim_setup(self, nvim: object):
+        nvim.subscribe('Gui')
+        nvim.options['showtabline'] = 0
+        nvim.vars['gui_channel'] = nvim.channel_id
+        nvim.command('ru! ginit.vim', async=True)
         Thread(daemon=True, target=nvim.run_loop,
                args=(partial(self.emit, 'nvim-request', nvim),
                      partial(self.emit, 'nvim-notify', nvim))).start()
