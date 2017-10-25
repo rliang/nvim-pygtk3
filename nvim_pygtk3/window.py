@@ -11,16 +11,17 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.switcher = Gtk.StackSwitcher()
         self.set_titlebar(Gtk.HeaderBar(show_close_button=True,
                                         custom_title=self.switcher))
-        self.notebook = Gtk.Notebook(parent=self,
+        vbox = Gtk.Box(parent=self, orientation=Gtk.Orientation.VERTICAL)
+        self.notebook = Gtk.Notebook(parent=vbox,
                                      show_tabs=False,
                                      show_border=False)
-        self.terminal = Vte.Terminal(is_focus=True,
+        swin = Gtk.ScrolledWindow(parent=vbox)
+        vbox.child_set_property(swin, 'expand', True)
+        self.terminal = Vte.Terminal(parent=Gtk.Viewport(parent=swin),
+                                     is_focus=True,
                                      has_focus=True,
-                                     scrollback_lines=0,
-                                     scroll_on_output=False,
-                                     scroll_on_keystroke=True,
-                                     rewrap_on_resize=False)
-        self.notebook.append_page(self.terminal)
+                                     pointer_autohide=True,
+                                     scrollback_lines=0)
         self.terminal.connect('child-exited', lambda *_: self.close())
         self._reset_font()
         self._reset_color()
@@ -61,6 +62,8 @@ class NeovimWindow(Gtk.ApplicationWindow):
             return GLib.idle_add(self._update_font, nvim, args[1:])
         if sub == 'Gui' and args[0] == 'Color':
             return GLib.idle_add(self._update_color, nvim, args[1:])
+        if sub == 'Gui' and args[0] == 'Scroll':
+            return GLib.idle_add(self._update_scroll, nvim, args[1:])
 
     @GObject.Signal(flags=GObject.SignalFlags.RUN_LAST)
     def nvim_request(self, nvim: object, sub: str, args: object) -> object:
@@ -83,19 +86,19 @@ class NeovimWindow(Gtk.ApplicationWindow):
                         lambda _, id: nvim.command(f'b {id}', async=True),
                         id)
         self.switcher.show_all()
+        self.terminal.grab_focus()
 
     def _update_tabs(self, nvim, args):
         tablist, tabcurr = args
         for _ in range(self.notebook.get_n_pages()):
             self.notebook.remove_page(-1)
-        for id, name in tablist:
-            page = self.terminal if id == tabcurr else Gtk.Box()
+        for name in tablist:
+            page = Gtk.Box()
             self.notebook.append_page(page, Gtk.Label(name))
             self.notebook.child_set_property(page, 'tab-expand', True)
-        self.notebook.set_current_page(self.notebook.page_num(self.terminal))
-        self.notebook.set_show_tabs(len(tablist) > 1)
         self.notebook.show_all()
-        self.terminal.grab_focus()
+        self.notebook.set_show_tabs(len(tablist) > 1)
+        self.notebook.set_current_page(tabcurr - 1)
 
     def _update_font(self, nvim, args):
         family, *attrs = args[0].split(':')
@@ -132,6 +135,13 @@ class NeovimWindow(Gtk.ApplicationWindow):
         sctx = self.terminal.get_style_context()
         rgba = sctx.get_background_color(sctx.get_state())
         self.terminal.set_color_background(rgba)
+
+    def _update_scroll(self, nvim, args):
+        a, b, lines = map(float, args)
+        value = (a if a == 0 else a + 1) / lines
+        page = (b - a) / lines
+        adjustment = self.terminal.get_parent().get_vadjustment()
+        adjustment.configure(value, 0.0, 1.0, 1.0 / lines, page, page)
 
     def _update_clipboard(self, nvim, args):
         method, data = args

@@ -3,8 +3,9 @@
 PyGTK3 frontend to Neovim with some visual GUI elements.
 
 * Provides GTK's clipboard (no need for xclip/xsel)
-* Buffer list on header bar
-* Tab list
+* Buffers on header bar
+* GUI Tabs
+* Overlay scrollbars
 * Applies GTK's light/dark themes according to `&bg`
 * Applies font from `:GuiFont`, or from GSettings'
   `org.gnome.desktop.interface:monospace-font-name`
@@ -47,8 +48,7 @@ exposing the following globals:
     [Docs](https://developer.gnome.org/vte/unstable/VteTerminal.html)
   * `window.switcher`: The GtkStackSwitcher that displays buffers.
     [Docs](https://developer.gnome.org/gtk3/unstable/GtkStackSwitcher.html)
-  * `window.notebook`: The GtkNotebook that displays tabs and hosts the
-    terminal.
+  * `window.notebook`: The GtkNotebook that displays tabs.
     [Docs](https://developer.gnome.org/gtk3/unstable/GtkNotebook.html)
 
 The `window` object has the following additional signals:
