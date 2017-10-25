@@ -44,6 +44,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
     def nvim_setup(self, nvim: object):
         nvim.subscribe('Gui')
         nvim.options['showtabline'] = 0
+        nvim.options['ruler'] = False
         nvim.vars['gui_channel'] = nvim.channel_id
         nvim.command('ru! ginit.vim', async=True)
         Thread(daemon=True, target=nvim.run_loop,

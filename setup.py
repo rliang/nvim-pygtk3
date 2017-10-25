@@ -3,7 +3,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 
 setup(name='nvim-pygtk3',
-      version='0.2.0',
+      version='0.2.1',
       description='PyGTK3 frontend to Neovim with some visual GUI elements.',
       long_description=open('README.md').read(),
       author='R. Liang',
