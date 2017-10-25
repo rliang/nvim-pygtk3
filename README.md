@@ -38,7 +38,7 @@ $ sudo python setup.py install --root=/
 
 ## Python scripts
 
-Scripts in `$XDG_CONFIG_HOME/nvim-pygtk3/*.py` are `exec`'d at startup,
+Scripts in `$XDG_CONFIG_HOME/nvim_pygtk3/*.py` are `exec`'d at startup,
 exposing the following globals:
 
 * `connect`: Utility wrapper to connect GObject signals.
@@ -56,7 +56,7 @@ The `window` object has the following additional signals:
 * `nvim-setup`: Emitted when neovim has started.
 * `nvim-notify`: Emitted when neovim has notified the GUI.
 
-Example script `~/.config/nvim-pygtk3/a.py`:
+Example script `~/.config/nvim_pygtk3/a.py`:
 
 ```python
 @connect(window, 'nvim-setup')
