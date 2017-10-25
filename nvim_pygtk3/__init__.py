@@ -1,10 +1,9 @@
-import sys
+from .window import NeovimWindow
 from .application import NeovimApplication
+
+__all__ = ('NeovimWindow', 'NeovimApplication')
 
 
 def main():
-    NeovimApplication(__package__, __file__).run(sys.argv[1:])
-
-
-if __name__ == '__main__':
-    main()
+    import sys
+    NeovimApplication(__package__, __path__).run(sys.argv[1:])

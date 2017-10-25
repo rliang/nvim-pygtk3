@@ -7,12 +7,12 @@ from .window import NeovimWindow
 
 class NeovimApplication(Gtk.Application):
 
-    def __init__(self, name, runtime, *args, **kwargs):
+    def __init__(self, name, path, *args, **kwargs):
         super().__init__(*args,
                          application_id=f'org.{name}',
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
                          **kwargs)
-        self.runtime = os.path.join(os.path.dirname(runtime), 'runtime')
+        self.runtime = ','.join(os.path.join(p, 'runtime') for p in path)
         self.scripts = os.path.join(GLib.get_user_config_dir(), name, '*.py')
         self.scripts = [compile(open(script).read(), script, 'exec')
                         for script in glob(self.scripts)]
