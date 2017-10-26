@@ -90,16 +90,16 @@ class NeovimViewport(Gtk.Viewport):
         pass
 
     def _do_vadjustment_value_changed(self, vadjustment):
-        if not self.lock:
+        if not self.lock and vadjustment.get_upper() == 1.0:
             val = vadjustment.get_value()
-            val = val if val == 0 else val + vadjustment.get_page_size()
+            val = val if val == 0.0 else val + vadjustment.get_page_size()
             self.emit('nvim-vscrolled', int(val * self.size))
 
     def update(self, a, b, size):
         self.lock = True
         a, b, self.size = map(float, (a, b, size))
         page = (b - a) / self.size
-        val = (a if a == 0 else a + 1) / self.size
+        val = (a if a == 0.0 else a + 1.0) / self.size
         vadj = self.get_vadjustment()
         vadj.configure(val, 0.0, 1.0, 1.0 / self.size, page, page)
         self.lock = False
@@ -181,8 +181,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
                                         custom_title=self.switcher))
         vbox = Gtk.Box(parent=self, orientation=Gtk.Orientation.VERTICAL)
         self.notebook = NeovimTabBar(parent=vbox)
-        swin = Gtk.ScrolledWindow(parent=vbox)
-        vbox.child_set_property(swin, 'expand', True)
+        swin = Gtk.ScrolledWindow(parent=vbox, expand=True)
         self.viewport = NeovimViewport(parent=swin)
         self.terminal = NeovimTerminal(parent=self.viewport)
         self.terminal.connect('child-exited', lambda *_:
