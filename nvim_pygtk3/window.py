@@ -9,6 +9,9 @@ class NeovimBufferBar(Gtk.StackSwitcher):
 
     The buttons also indicate modified buffers through a `document-edit` icon.
 
+    To increase performance, buttons are kept in a cache that is increased as
+    needed.
+
     """
 
     updating = GObject.Property(type=bool, default=False)
@@ -27,7 +30,7 @@ class NeovimBufferBar(Gtk.StackSwitcher):
         """
         pass
 
-    def _do_button_toggled(self, btn):
+    def _do_button_toggled(self, btn: Gtk.ToggleButton):
         """Handler for when a button is toggled.
 
         Emits `nvim-switch-buffer` if the button was toggled ON, and the widget
@@ -46,7 +49,7 @@ class NeovimBufferBar(Gtk.StackSwitcher):
             else:
                 btn.set_active(True)
 
-    def update(self, buflist, bufcurr):
+    def update(self, buflist: list, bufcurr: int):
         """Updates the widget's buttons.
 
         Increases the internal button cache if needed, then displays the
@@ -97,11 +100,20 @@ class NeovimTabBar(Gtk.Notebook):
         """
         pass
 
-    def _do_switch_page(self, _, page, num):
+    def _do_switch_page(self, _, page: Gtk.Widget, num: int):
+        """Handler for when a tab page is selected.
+
+        Emits `nvim-switch-tab` if the widget is not in the middle of an
+        update.
+
+        :page: the selected tab page.
+        :num: the selected tab page number.
+
+        """
         if not self.props.updating:
             self.emit('nvim-switch-tab', num + 1)
 
-    def update(self, tablist, tabcurr):
+    def update(self, tablist: list, tabcurr: int):
         """Updates the widget's tabs.
 
         :tablist: list of tab names.
@@ -148,13 +160,22 @@ class NeovimViewport(Gtk.Viewport):
         """
         pass
 
-    def _do_vadjustment_value_changed(self, vadj):
+    def _do_vadjustment_value_changed(self, vadj: Gtk.Adjustment):
+        """Handler for when the GtkAdjustment's value is changed.
+
+        Emits `nvim-vscrolled` if the widget is not in the middle of an
+        update and the bounds are still valid, i.e. not changed automatically
+        by GTK.
+
+        :vadj: the adjustment.
+
+        """
         if not self.props.updating and vadj.get_upper() == 1.0:
             v = vadj.get_value()
             v = v if v == 0.0 else v + vadj.get_page_size()
             self.emit('nvim-vscrolled', int(v * self.props.lines))
 
-    def update(self, a, b, lines):
+    def update(self, a: int, b: int, lines: int):
         """Updates the viewport.
 
         :a: the first visible line of the current window's buffer.
@@ -197,7 +218,16 @@ class NeovimTerminal(Vte.Terminal):
         """
         pass
 
-    def spawn(self, addr, argv, rtp):
+    def spawn(self, addr: str, argv: list, rtp: str):
+        """Spawns the neovim process.
+
+        Upon success, attaches to it and emits `nvim-attached`.
+
+        :addr: the socket path for neovim to listen on.
+        :argv: additional arguments passed to neovim.
+        :rtp: additional comma-separated vim runtime paths.
+
+        """
         def callback(self):
             self.disconnect(once)
             self.emit('nvim-attached', neovim.attach('socket', path=addr))
@@ -211,7 +241,7 @@ class NeovimTerminal(Vte.Terminal):
                         None,
                         None)
 
-    def update_font(self, value):
+    def update_font(self, value: str):
         """Updates the widget's font.
 
         :value: see vim's `:h guifont`.
@@ -228,7 +258,7 @@ class NeovimTerminal(Vte.Terminal):
                 font.set_style(Pango.Style.ITALIC)
         self.set_font(font)
 
-    def update_color(self, bg_color, is_dark):
+    def update_color(self, bg_color: str, is_dark: bool):
         """Updates the widget's background color and theme.
 
         :bg_color: string representing the color, or 'None'.
@@ -348,7 +378,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         if sub == 'Gui' and args[0] == 'Clipboard':
             return self.update_clipboard(*args[1:])
 
-    def update_clipboard(self, method, data):
+    def update_clipboard(self, method: str, data: list):
         """Handles a clipboard request.
 
         This is called on neovim's event loop, so modifications to GTK widgets
@@ -357,7 +387,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         :method: `get` to obtain the clipboard's contents or `set` to update
         them.
         :data: when the method is `set`, contains the lines to add to the
-        clipboard.
+        clipboard, else None.
         :returns: the clipboard's contents when the method is `get`, else None.
 
         """
