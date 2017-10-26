@@ -147,13 +147,13 @@ class NeovimTerminal(Vte.Terminal):
         self.set_font(font)
 
     def update_color(self, bg_color, is_dark):
+        self.get_settings().props.gtk_application_prefer_dark_theme = is_dark
         if bg_color != 'None':
             rgba = Gdk.RGBA()
             rgba.parse(bg_color)
             self.set_color_background(rgba)
         else:
-            self.reset_color()
-        self.get_settings().props.gtk_application_prefer_dark_theme = is_dark
+            GLib.idle_add(self.reset_color)
 
     def reset_font(self):
         giosss = Gio.SettingsSchemaSource.get_default()

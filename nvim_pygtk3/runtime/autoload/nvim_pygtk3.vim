@@ -25,8 +25,13 @@ fu! nvim_pygtk3#notify_tabs()
   en
 endf
 
+let s:color_state=[]
 fu! nvim_pygtk3#notify_colors()
-  cal rpcnotify(g:gui_channel, 'Gui', 'Color', synIDattr(hlID('Normal'), 'bg'), &bg == 'dark')
+  let state=[synIDattr(hlID('Normal'), 'bg'), &bg == 'dark']
+  if state != s:color_state
+    let s:color_state = state
+    cal rpcnotify(g:gui_channel, 'Gui', 'Color', state[0], state[1])
+  en
 endf
 
 let s:scroll_state=[]
