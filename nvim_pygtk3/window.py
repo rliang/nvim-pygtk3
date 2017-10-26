@@ -52,12 +52,13 @@ class NeovimTabBar(Gtk.Notebook):
                          show_border=False,
                          **kwargs)
         self.lock = False
+        self.connect('switch-page', self._do_switch_page)
 
     @GObject.Signal()
     def nvim_switch_tab(self, id: int):
         pass
 
-    def do_switch_page(self, page, num):
+    def _do_switch_page(self, _, page, num):
         if not self.lock:
             self.emit('nvim-switch-tab', num + 1)
 
@@ -70,8 +71,8 @@ class NeovimTabBar(Gtk.Notebook):
             self.append_page(page, Gtk.Label(name))
             self.child_set_property(page, 'tab-expand', True)
         self.show_all()
-        self.props.show_tabs = len(tablist) > 1
-        self.props.page = tabcurr - 1
+        self.set_current_page(tabcurr - 1)
+        self.set_show_tabs(self.get_n_pages() > 1)
         self.lock = False
 
 
