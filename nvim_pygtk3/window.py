@@ -181,9 +181,8 @@ class NeovimWindow(Gtk.ApplicationWindow):
                                         custom_title=self.switcher))
         vbox = Gtk.Box(parent=self, orientation=Gtk.Orientation.VERTICAL)
         self.notebook = NeovimTabBar(parent=vbox)
-        swin = Gtk.ScrolledWindow(parent=vbox, expand=True)
-        self.viewport = NeovimViewport(parent=swin)
-        self.terminal = NeovimTerminal(parent=self.viewport)
+        self.viewport = NeovimViewport(parent=Gtk.ScrolledWindow(parent=vbox))
+        self.terminal = NeovimTerminal(parent=self.viewport, expand=True)
         self.terminal.connect('child-exited', lambda *_:
                               self.close())
         self.terminal.connect('nvim-attached', lambda _, nvim:
