@@ -12,6 +12,7 @@ augroup nvim_pygtk3
   au TabEnter,TabLeave,TabNew,TabClosed * cal nvim_pygtk3#notify_tabs()
 
   au ColorScheme * cal nvim_pygtk3#notify_colors()
+  do ColorScheme
 
   au CursorMoved,CursorMovedI * cal nvim_pygtk3#notify_scroll()
   au VimResized * cal nvim_pygtk3#notify_scroll()
