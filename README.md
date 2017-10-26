@@ -50,11 +50,14 @@ exposing the following globals:
     [Docs](https://developer.gnome.org/gtk3/unstable/GtkStackSwitcher.html)
   * `window.notebook`: The GtkNotebook that displays tabs.
     [Docs](https://developer.gnome.org/gtk3/unstable/GtkNotebook.html)
+  * `window.viewport`: The GtkViewport that holds the terminal.
+    [Docs](https://developer.gnome.org/gtk3/unstable/GtkViewport.html)
 
 The `window` object has the following additional signals:
 
 * `nvim-setup`: Emitted when neovim has started.
 * `nvim-notify`: Emitted when neovim has notified the GUI.
+* `nvim-request`: Emitted when neovim has requested the GUI.
 
 Example script `~/.config/nvim_pygtk3/a.py`:
 
@@ -72,7 +75,3 @@ def b(nvim, event, args):
 def c():
     print('cursor moved!')
 ```
-
-## Known issues
-
-* Manually scrolling the scrollbar doesn't work.

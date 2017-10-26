@@ -22,9 +22,10 @@ class NeovimApplication(Gtk.Application):
         self._configure(window)
         window.show_all()
         window.present()
-        window.spawn(os.path.join(GLib.get_tmp_dir(), f'nvim-{uuid4()}'),
-                     command_line.get_arguments(),
-                     self.runtime)
+        GLib.idle_add(window.terminal.spawn,
+                      os.path.join(GLib.get_tmp_dir(), f'nvim-{uuid4()}'),
+                      command_line.get_arguments(),
+                      self.runtime)
 
     def _configure(self, window):
         def connect(obj, sig):
