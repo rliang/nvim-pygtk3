@@ -75,4 +75,4 @@ def c():
 
 ## Known issues
 
-* Clicking tabs doesn't work.
+* Manually scrolling the scrollbar doesn't work.

@@ -8,6 +8,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.updating = False
         self.switcher = Gtk.StackSwitcher()
         self.set_titlebar(Gtk.HeaderBar(show_close_button=True,
                                         custom_title=self.switcher))
@@ -47,6 +48,9 @@ class NeovimWindow(Gtk.ApplicationWindow):
         nvim.options['ruler'] = False
         nvim.vars['gui_channel'] = nvim.channel_id
         nvim.command('ru! ginit.vim', async=True)
+        self.notebook.connect('switch-page', lambda _, page, num:
+                              nvim.command(f'{num + 1}tabn', async=True)
+                              if not self.updating else None)
         Thread(daemon=True, target=nvim.run_loop,
                args=(partial(self.emit, 'nvim-request', nvim),
                      partial(self.emit, 'nvim-notify', nvim))).start()
@@ -89,6 +93,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     def _update_tabs(self, nvim, args):
         tablist, tabcurr = args
+        self.updating = True
         for _ in range(self.notebook.get_n_pages()):
             self.notebook.remove_page(-1)
         for name in tablist:
@@ -98,6 +103,7 @@ class NeovimWindow(Gtk.ApplicationWindow):
         self.notebook.show_all()
         self.notebook.set_show_tabs(len(tablist) > 1)
         self.notebook.set_current_page(tabcurr - 1)
+        self.updating = False
 
     def _update_font(self, nvim, args):
         family, *attrs = args[0].split(':')
