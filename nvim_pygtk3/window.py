@@ -5,19 +5,41 @@ from functools import partial
 
 
 class NeovimBufferBar(Gtk.StackSwitcher):
+    """Widget that displays open buffers as GtkToggleButtons.
+
+    The buttons also indicate modified buffers through a `document-edit` icon.
+
+    """
+
+    updating = GObject.Property(type=bool, default=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lock = False
         self.btns = []
         self.bids = []
 
     @GObject.Signal()
     def nvim_switch_buffer(self, id: int):
+        """Signal emitted when the current buffer should be switched.
+
+        :id: the buffer number to switch to.
+
+        """
         pass
 
     def _do_button_toggled(self, btn):
-        if not self.lock:
+        """Handler for when a button is toggled.
+
+        Emits `nvim-switch-buffer` if the button was toggled ON, and the widget
+        isn't in the middle of an update.
+
+        Also avoids toggling off buttons, since the user can't "unswitch" to a
+        buffer.
+
+        :btn: the toggled button.
+
+        """
+        if not self.props.updating:
             if btn.get_active():
                 id = self.bids[self.btns.index(btn)]
                 self.emit('nvim-switch-buffer', id)
@@ -25,7 +47,16 @@ class NeovimBufferBar(Gtk.StackSwitcher):
                 btn.set_active(True)
 
     def update(self, buflist, bufcurr):
-        self.lock = True
+        """Updates the widget's buttons.
+
+        Increases the internal button cache if needed, then displays the
+        appropriate amount of buttons, updating their state.
+
+        :buflist: list of tuples (buffer-number, buffer-name, buffer-modified)
+        :bufcurr: the active buffer's number
+
+        """
+        self.props.updating = True
         self.bids = [id for id, *_ in buflist]
         for _ in range(len(buflist) - len(self.btns)):
             ico = Gtk.Image(icon_name='document-edit-symbolic')
@@ -40,30 +71,38 @@ class NeovimBufferBar(Gtk.StackSwitcher):
             btn.set_always_show_image(modified)
             self.add(btn)
         self.show_all()
-        self.lock = False
+        self.props.updating = False
 
 
 class NeovimTabBar(Gtk.Notebook):
+    """Widget that displays tabs.
+
+    Pages added to this widget are dummies, since the actual content is drawn
+    elsewhere.
+
+    """
+
+    updating = GObject.Property(type=bool, default=False)
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,
-                         can_focus=False,
-                         show_tabs=False,
-                         show_border=False,
-                         **kwargs)
-        self.lock = False
+        super().__init__(*args, show_border=False, **kwargs)
         self.connect('switch-page', self._do_switch_page)
 
     @GObject.Signal()
     def nvim_switch_tab(self, id: int):
+        """Signal emitted when the current tab should be switched.
+
+        :id: the tab number to switch to.
+
+        """
         pass
 
     def _do_switch_page(self, _, page, num):
-        if not self.lock:
+        if not self.props.updating:
             self.emit('nvim-switch-tab', num + 1)
 
     def update(self, tablist, tabcurr):
-        self.lock = True
+        self.props.updating = True
         for _ in range(self.get_n_pages()):
             self.remove_page(-1)
         for name in tablist:
@@ -73,39 +112,58 @@ class NeovimTabBar(Gtk.Notebook):
         self.show_all()
         self.set_current_page(tabcurr - 1)
         self.set_show_tabs(self.get_n_pages() > 1)
-        self.lock = False
+        self.props.updating = False
 
 
 class NeovimViewport(Gtk.Viewport):
+    """Widget that manages scrollbars.
+
+    Typically this should be added to a GtkScrolledWindow, and the widget that
+    draws neovim's content should be added to this.
+
+    The internal GtkAdjustment's range is forced between [0, 1] to prevent the
+    child widget from looking overscrolled.
+    """
+
+    lines = GObject.Property(type=int, default=1)
+    updating = GObject.Property(type=bool, default=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lock = False
-        self.size = 1
         vadj = self.get_vadjustment()
         vadj.connect('value-changed', self._do_vadjustment_value_changed)
 
     @GObject.Signal()
     def nvim_vscrolled(self, val: int):
+        """Signal emitted when the current window should be scrolled.
+
+        :val: the line number to scroll to.
+
+        """
         pass
 
-    def _do_vadjustment_value_changed(self, vadjustment):
-        if not self.lock and vadjustment.get_upper() == 1.0:
-            val = vadjustment.get_value()
-            val = val if val == 0.0 else val + vadjustment.get_page_size()
-            self.emit('nvim-vscrolled', int(val * self.size))
+    def _do_vadjustment_value_changed(self, vadj):
+        if not self.props.updating and vadj.get_upper() == 1.0:
+            v = vadj.get_value()
+            v = v if v == 0.0 else v + vadj.get_page_size()
+            self.emit('nvim-vscrolled', int(v * self.props.lines))
 
-    def update(self, a, b, size):
-        self.lock = True
-        a, b, self.size = map(float, (a, b, size))
-        page = (b - a) / self.size
-        val = (a if a == 0.0 else a + 1.0) / self.size
+    def update(self, a, b, lines):
+        self.props.updating = True
+        a, b, self.props.lines = map(float, (a, b, lines))
+        p = (b - a) / self.props.lines
+        v = (a if a == 0.0 else a + 1.0) / self.props.lines
         vadj = self.get_vadjustment()
-        vadj.configure(val, 0.0, 1.0, 1.0 / self.size, page, page)
-        self.lock = False
+        vadj.configure(v, 0.0, 1.0, 1.0 / self.props.lines, p, p)
+        self.props.updating = False
 
 
 class NeovimTerminal(Vte.Terminal):
+    """Widget that manages the child neovim process and displays its content.
+
+    TODO: use a GtkDrawingArea and `ui_attach` instead.
+
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args,
@@ -119,6 +177,11 @@ class NeovimTerminal(Vte.Terminal):
 
     @GObject.Signal()
     def nvim_attached(self, nvim: object):
+        """Signal emitted when successfully attached to neovim's remote API.
+
+        :nvim: the attached `neovim.Nvim` instance.
+
+        """
         pass
 
     def spawn(self, addr, argv, rtp):
