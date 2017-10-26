@@ -195,6 +195,10 @@ class NeovimWindow(Gtk.ApplicationWindow):
         nvim.options['showtabline'] = 0
         nvim.options['ruler'] = False
         nvim.command('ru! ginit.vim', async=True)
+        self.terminal.connect('focus-in-event', lambda *_:
+                              nvim.command(f'do FocusGained', async=True))
+        self.terminal.connect('focus-out-event', lambda *_:
+                              nvim.command(f'do FocusLost', async=True))
         self.switcher.connect('nvim-switch-buffer', lambda _, num:
                               nvim.command(f'b {num}', async=True))
         self.notebook.connect('nvim-switch-tab', lambda _, num:
