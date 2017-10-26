@@ -8,24 +8,39 @@ class NeovimBufferBar(Gtk.StackSwitcher):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.lock = False
+        self.btns = []
+        self.bids = []
 
     @GObject.Signal()
     def nvim_switch_buffer(self, id: int):
         pass
 
+    def _do_button_toggled(self, btn):
+        if not self.lock:
+            if btn.get_active():
+                id = self.bids[self.btns.index(btn)]
+                self.emit('nvim-switch-buffer', id)
+            else:
+                btn.set_active(True)
+
     def update(self, buflist, bufcurr):
-        for child in self.get_children():
-            self.remove(child)
-        for id, name, modified in buflist:
-            ico = (Gtk.Image(icon_name='document-edit-symbolic')
-                   if modified else None)
-            btn = Gtk.ToggleButton(name, parent=self, can_focus=False,
-                                   active=id == bufcurr,
-                                   image=ico, always_show_image=True)
-            btn.connect('clicked',
-                        lambda _, id: self.emit('nvim-switch-buffer', id),
-                        id)
+        self.lock = True
+        self.bids = [id for id, *_ in buflist]
+        for _ in range(len(buflist) - len(self.btns)):
+            ico = Gtk.Image(icon_name='document-edit-symbolic')
+            btn = Gtk.ToggleButton(None, can_focus=False, image=ico)
+            btn.connect('toggled', self._do_button_toggled)
+            self.btns.append(btn)
+        for btn in self.get_children():
+            self.remove(btn)
+        for btn, (id, name, modified) in zip(self.btns, buflist):
+            btn.set_label(name)
+            btn.set_active(id == bufcurr)
+            btn.set_always_show_image(modified)
+            self.add(btn)
         self.show_all()
+        self.lock = False
 
 
 class NeovimTabBar(Gtk.Notebook):
