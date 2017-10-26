@@ -52,8 +52,8 @@ class NeovimBufferBar(Gtk.StackSwitcher):
         Increases the internal button cache if needed, then displays the
         appropriate amount of buttons, updating their state.
 
-        :buflist: list of tuples (buffer-number, buffer-name, buffer-modified)
-        :bufcurr: the active buffer's number
+        :buflist: list of tuples (buffer-number, buffer-name, buffer-modified).
+        :bufcurr: the active buffer's number.
 
         """
         self.props.updating = True
@@ -102,6 +102,12 @@ class NeovimTabBar(Gtk.Notebook):
             self.emit('nvim-switch-tab', num + 1)
 
     def update(self, tablist, tabcurr):
+        """Updates the widget's tabs.
+
+        :tablist: list of tab names.
+        :tabcurr: the active buffer's number.
+
+        """
         self.props.updating = True
         for _ in range(self.get_n_pages()):
             self.remove_page(-1)
@@ -149,6 +155,13 @@ class NeovimViewport(Gtk.Viewport):
             self.emit('nvim-vscrolled', int(v * self.props.lines))
 
     def update(self, a, b, lines):
+        """Updates the viewport.
+
+        :a: the first visible line of the current window's buffer.
+        :b: the last visible line of the current window's buffer.
+        :lines: the current window's buffer's line count.
+
+        """
         self.props.updating = True
         a, b, self.props.lines = map(float, (a, b, lines))
         p = (b - a) / self.props.lines
@@ -161,7 +174,7 @@ class NeovimViewport(Gtk.Viewport):
 class NeovimTerminal(Vte.Terminal):
     """Widget that manages the child neovim process and displays its content.
 
-    TODO: use a GtkDrawingArea and `ui_attach` instead.
+    TODO: use a GtkDrawingArea and `Nvim.ui_attach` instead.
 
     """
 
@@ -199,6 +212,11 @@ class NeovimTerminal(Vte.Terminal):
                         None)
 
     def update_font(self, value):
+        """Updates the widget's font.
+
+        :value: see vim's `:h guifont`.
+
+        """
         family, *attrs = value.split(':')
         font = Pango.FontDescription(string=family.replace('_', ' '))
         for a in attrs:
@@ -211,6 +229,12 @@ class NeovimTerminal(Vte.Terminal):
         self.set_font(font)
 
     def update_color(self, bg_color, is_dark):
+        """Updates the widget's background color and theme.
+
+        :bg_color: string representing the color, or 'None'.
+        :is_dark: whether the background is dark, see `:h background`.
+
+        """
         self.get_settings().props.gtk_application_prefer_dark_theme = is_dark
         if bg_color != 'None':
             rgba = Gdk.RGBA()
@@ -220,6 +244,7 @@ class NeovimTerminal(Vte.Terminal):
             GLib.idle_add(self.reset_color)
 
     def reset_font(self):
+        """Sets the widget's font from GSettings, if any. """
         giosss = Gio.SettingsSchemaSource.get_default()
         schema = giosss.lookup('org.gnome.desktop.interface', True)
         if not schema:
@@ -230,12 +255,14 @@ class NeovimTerminal(Vte.Terminal):
         self.set_font(Pango.FontDescription(string=value))
 
     def reset_color(self):
+        """Sets the widget's backgound color from the GTK theme. """
         sctx = self.get_style_context()
         rgba = sctx.get_background_color(sctx.get_state())
         self.set_color_background(rgba)
 
 
 class NeovimWindow(Gtk.ApplicationWindow):
+    """The main window, which wires neovim and the widgets together. """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -253,6 +280,14 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     @GObject.Signal(flags=GObject.SignalFlags.RUN_LAST)
     def nvim_setup(self, nvim: object):
+        """Signal emitted before neovim's main loop.
+
+        After the emission, widgets which can control neovim are connected to
+        the API instance. Then, the main loop's thread is started.
+
+        :nvim: the `neovim.Nvim` instance.
+
+        """
         nvim.vars['gui_channel'] = nvim.channel_id
         nvim.subscribe('Gui')
         nvim.options['showtabline'] = 0
@@ -274,6 +309,16 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     @GObject.Signal(flags=GObject.SignalFlags.RUN_LAST)
     def nvim_notify(self, nvim: object, sub: str, args: object):
+        """Signal emitted on a notification from neovim.
+
+        This is called on neovim's event loop, so modifications to GTK widgets
+        should be done through `GLib.idle_add()`.
+
+        :nvim: the `neovim.Nvim` instance.
+        :sub: the event name.
+        :args: the event arguments.
+
+        """
         if sub == 'Gui' and args[0] == 'Bufs':
             return GLib.idle_add(self.switcher.update, *args[1:])
         if sub == 'Gui' and args[0] == 'Tabs':
@@ -287,10 +332,35 @@ class NeovimWindow(Gtk.ApplicationWindow):
 
     @GObject.Signal(flags=GObject.SignalFlags.RUN_LAST)
     def nvim_request(self, nvim: object, sub: str, args: object) -> object:
+        """Signal emitted on a request from neovim.
+
+        This is called on neovim's event loop, so modifications to GTK widgets
+        should be done through `GLib.idle_add()`.
+
+        After emission, should return an appropriate value expected by the
+        request.
+
+        :nvim: the `neovim.Nvim` instance.
+        :sub: the request name.
+        :args: the request arguments.
+
+        """
         if sub == 'Gui' and args[0] == 'Clipboard':
             return self.update_clipboard(*args[1:])
 
     def update_clipboard(self, method, data):
+        """Handles a clipboard request.
+
+        This is called on neovim's event loop, so modifications to GTK widgets
+        should be done through `GLib.idle_add()`.
+
+        :method: `get` to obtain the clipboard's contents or `set` to update
+        them.
+        :data: when the method is `set`, contains the lines to add to the
+        clipboard.
+        :returns: the clipboard's contents when the method is `get`, else None.
+
+        """
         cb = Gtk.Clipboard.get_default(Gdk.Display.get_default())
         if method == 'set':
             text = '\n'.join(data[0])
