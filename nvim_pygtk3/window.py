@@ -295,7 +295,10 @@ class NeovimWindow(Gtk.ApplicationWindow):
     """The main window, which wires neovim and the widgets together. """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args,
+                         default_width=640,
+                         default_height=480,
+                         **kwargs)
         self.switcher = NeovimBufferBar()
         self.set_titlebar(Gtk.HeaderBar(show_close_button=True,
                                         custom_title=self.switcher))
