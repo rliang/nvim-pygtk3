@@ -19,6 +19,7 @@ PyGTK3 frontend to Neovim with some visual GUI elements.
 
 Requirements:
 
+* `python 3.6+`
 * `python-setuptools` (make)
 * `python-neovim`
 * `python-gobject`
