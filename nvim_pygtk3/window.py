@@ -228,6 +228,7 @@ class NeovimTerminal(Vte.Terminal):
         :rtp: additional comma-separated vim runtime paths.
 
         """
+
         def callback(self):
             self.disconnect(once)
             self.emit('nvim-attached', neovim.attach('socket', path=addr))
@@ -325,17 +326,22 @@ class NeovimWindow(Gtk.ApplicationWindow):
         nvim.subscribe('Gui')
         nvim.options['showtabline'] = 0
         nvim.options['ruler'] = False
-        nvim.command('ru! ginit.vim', async=True)
+        nvim.async_call(partial(nvim.command, 'ru! ginit.vim'))
         self.terminal.connect('focus-in-event', lambda *_:
-                              nvim.command(f'do FocusGained', async=True))
+                              nvim.async_call(partial(nvim.command,
+                                                      f'do FocusGained')))
         self.terminal.connect('focus-out-event', lambda *_:
-                              nvim.command(f'do FocusLost', async=True))
+                              nvim.async_call(partial(nvim.command,
+                                                      f'do FocusLost')))
         self.switcher.connect('nvim-switch-buffer', lambda _, num:
-                              nvim.command(f'b {num}', async=True))
+                              nvim.async_call(partial(nvim.command,
+                                                      f'b {num}')))
         self.notebook.connect('nvim-switch-tab', lambda _, num:
-                              nvim.command(f'{num}tabn', async=True))
+                              nvim.async_call(partial(nvim.command,
+                                                      f'{num}tabn')))
         self.viewport.connect('nvim-vscrolled', lambda _, val:
-                              nvim.command(f'norm! {val}gg', async=True))
+                              nvim.async_call(partial(nvim.command,
+                                                      f'norm! {val}gg')))
         Thread(daemon=True, target=nvim.run_loop,
                args=(partial(self.emit, 'nvim-request', nvim),
                      partial(self.emit, 'nvim-notify', nvim))).start()
@@ -401,3 +407,4 @@ class NeovimWindow(Gtk.ApplicationWindow):
         if method == 'get':
             text = cb.wait_for_text()
             return text.split('\n') if text else []
+
